@@ -1,5 +1,5 @@
 import ToDoService from '../_services/ToDoService';
-import { Model } from 'mobx-pouch';
+import { Model } from 'mobx-pouchdb';
 import { observable, action } from 'mobx';
 
 export default class ToDoModel extends Model {

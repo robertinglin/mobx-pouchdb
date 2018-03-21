@@ -56,3 +56,6 @@ typings/
 
 # dotenv environment variables file
 .env
+
+# example specific files
+examples/todo/yarn.lock

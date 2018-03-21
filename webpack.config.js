@@ -5,7 +5,7 @@ module.exports = {
     entry: './src/index.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'mobx-pouch.js',
+        filename: 'mobx-pouchdb.js',
         library: 'pouch',
         libraryTarget: 'umd'
     },
