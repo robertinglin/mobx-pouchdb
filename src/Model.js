@@ -5,8 +5,11 @@ export default class Model {
     _id;
     __edit = new Map();
 
-    constructor() {
+    constructor(doc) {
         this.generateId();
+        if (doc) {
+            Object.keys(doc).forEach(key => this[key] = doc[key]);
+        }
     }
 
     generateId() {
