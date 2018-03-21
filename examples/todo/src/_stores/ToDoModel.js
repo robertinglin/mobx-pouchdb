@@ -31,9 +31,9 @@ export default class ToDoModel extends Model {
 
     async save() {
         super.save();
-        ToDoService.update(this.toJS());
+        ToDoService.db.put(this.toJS());
     }
     remove() {
-        ToDoService.remove(this.toJS());
+        ToDoService.db.remove(this.toJS());
     }
 }

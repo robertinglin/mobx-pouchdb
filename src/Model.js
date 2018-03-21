@@ -15,7 +15,7 @@ export default class Model {
 
     save() {
         let editCount = 0;
-        this.edit.toJS().forEach((val, key) => {
+        this.__edit.toJS().forEach((val, key) => {
             this[key] = val;
             ++editCount;
         });

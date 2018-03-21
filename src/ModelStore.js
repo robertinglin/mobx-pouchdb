@@ -6,7 +6,6 @@ export default class ModelStore {
     constructor(propertyName, Model, db) {
         this.propertyName = propertyName;
         this.Model = Model;
-        this.service = service;
         this.db = db;
         extendObservable(this, {
             [propertyName]: []
@@ -15,20 +14,11 @@ export default class ModelStore {
             since: 'now',
             live: true,
             include_docs: true
-        }).on('change', this.handleChanges);
+        }).on('change', this.handleChanges.bind(this));
     }
 
     query(mapFunc, filterOptions) {
         const stringOptions = JSON.stringify(filterOptions);
-        if(!!this.lists[mapFunc] && !!this.lists[mapFunc].queries[stringOptions]) {
-            return this.lists[mapFunc].queries[stringOptions];
-        }
-        if (!this.lists[mapFunc]) {
-            this.lists[mapFunc] = {
-                mapFunc,
-                queries: {}
-            };
-        }
         const queryResults = {
             filterOptions,
             mapFunc
@@ -37,6 +27,19 @@ export default class ModelStore {
             [this.propertyName]: [],
             results: null
         });
+
+        if (filterOptions.live) {
+            if(!!this.lists[mapFunc] && !!this.lists[mapFunc].queries[stringOptions]) {
+                return this.lists[mapFunc].queries[stringOptions];
+            }
+            if (!this.lists[mapFunc]) {
+                this.lists[mapFunc] = {
+                    mapFunc,
+                    queries: {}
+                };
+            }
+            this.lists[mapFunc].queries[stringOptions] = queryResults;
+        }
         if (filterOptions.local_query) {
             queryResults.results = this.__localQuery(mapFunc, filterOptions);
             queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.sideLoad(d.doc))
@@ -47,7 +50,6 @@ export default class ModelStore {
                 queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.sideLoad(d.doc))
             });
         }
-        this.lists[mapFunc].queries[stringOptions] = queryResults;
         return queryResults;
     }
 
@@ -97,7 +99,7 @@ export default class ModelStore {
 
     add(doc) {
         const jsDoc = (doc.toJS && doc.toJS()) || doc;
-        return this.db.update(jsDoc).then((status) => {
+        return this.db.put(jsDoc).then((status) => {
             if (status.ok) {
                 jsDoc._rev = status.rev;
             }
@@ -109,14 +111,14 @@ export default class ModelStore {
     }
 
     loadAll(settings = { include_docs: true, decending: true }) {
-        return this.db.getAll(settings).then((allDocs) => {
-            this[this.propertyName] = allDocs.rows.map(doc => new this.Model(doc));
+        return this.db.allDocs(settings).then((allDocs) => {
+            this[this.propertyName] = allDocs.rows.map(doc => new this.Model(doc.doc));
             allDocs.rows.forEach(doc => this.__queryDocOnChange(doc));
             return this[this.propertyName];
         });
     }
  
-    handleChanges() {
+    handleChanges(rev) {
         if (rev.deleted) {
             this.onDelete(rev.doc, rev);
         }

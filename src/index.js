@@ -1,7 +1,4 @@
-import Model from './Model';
-import ModelStore from './ModelStore';
+export { default as Model } from './Model';
+export { default as ModelStore } from './ModelStore';
 
-export default {
-    Model,
-    ModelStore
-};
+export default {};

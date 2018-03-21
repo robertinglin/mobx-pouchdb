@@ -1,10 +1,10 @@
 {
   "name": "mobx-pouchdb",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MobX'd PouchDB connections",
   "main": "dist/mobx-pouchdb.js",
   "repository": "https://github.com/robertinglin/mobx-pouchdb.git",
-  "author": "Robert Inglin <robertinglin@hotmail.com>",
+  "author": "Robert Inglin <robertinglin@gmail.com>",
   "license": "MIT",
   "scripts": {
     "test": "jest --coverage",
