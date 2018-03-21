@@ -31,13 +31,10 @@ export default class ToDoAdd extends Component {
 
     render() {
         return (
-            <div>
-                <form className="todoadd" onSubmit={(e) => {e.preventDefault();this.search()}} >
-                    <input type="text" value={SearchStore.query} onChange={this.change} />
-                    <input type="submit" disabled={!SearchStore.query} value="Search" />
-                </form>
-                <button onClick={this.clear}>Clear</button>
-            </div>
+            <p>
+                Search <input type="text" value={SearchStore.query} onChange={this.change} />&nbsp;
+                <button onClick={this.clear} disabled={!SearchStore.query}>Clear</button>
+            </p>
         );
     }
 }

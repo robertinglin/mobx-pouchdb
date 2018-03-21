@@ -1,14 +1,11 @@
 import React, { Component } from 'react';
 import { hot } from 'react-hot-loader';
-import { observer } from 'mobx-react';
 import ToDo from './ToDo';
 import reactlogo from './react.svg';
 import mobxlogo from './mobx.svg';
 import pouchdblogo from './pouchdb.svg';
 import './App.css';
 
-
-@observer
 class App extends Component {
     componentDidMount() {
         
@@ -24,6 +21,9 @@ class App extends Component {
                 </header>
                 <br/>
                 <ToDo />
+                <p>Try adding a todo!</p>
+                <p>Search queries are live and will automatically update<br/>if you add a todo matching your search</p>
+                <p>Refreshing the page will persist your todo data.</p>
             </div>
         );
     }

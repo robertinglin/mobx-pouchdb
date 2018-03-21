@@ -19,6 +19,7 @@ export default class ToDoAdd extends Component {
         return (
             <div>
                 <Search />
+                {SearchStore.queryResults && <div>Results: {SearchStore.queryResults.todos.length}</div>}
                 <List list={list} />
                 <Add />
             </div> 
