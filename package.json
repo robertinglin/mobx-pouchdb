@@ -1,6 +1,6 @@
 {
   "name": "mobx-pouchdb",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "MobX'd PouchDB connections",
   "main": "dist/mobx-pouchdb.js",
   "repository": "https://github.com/robertinglin/mobx-pouchdb.git",
