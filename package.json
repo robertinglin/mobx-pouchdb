@@ -28,8 +28,6 @@
     "webpack-cli": "^2.0.12"
   },
   "dependencies": {
-    "mobx": "^4.1.0",
-    "pouchdb": "^6.4.3",
     "shortid": "^2.2.8"
   }
 }
