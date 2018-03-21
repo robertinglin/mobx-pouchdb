@@ -1,4 +1,4 @@
-import { action, extendObservable, decorate } from 'mobx';
+import { action, extendObservable, decorate, runInAction } from 'mobx';
  
 export default class ModelStore {
     lists = [];
@@ -106,7 +106,7 @@ export default class ModelStore {
 
     loadAll(settings = { include_docs: true, decending: true }) {
         return this.db.allDocs(settings).then((allDocs) => {
-            this[this.propertyName] = allDocs.rows.map(doc => new this.Model(doc.doc));
+            runInAction(() =>this[this.propertyName] = allDocs.rows.map(doc => new this.Model(doc.doc)));
             allDocs.rows.forEach(doc => this.__queryDocOnChange(doc));
             return this[this.propertyName];
         });
