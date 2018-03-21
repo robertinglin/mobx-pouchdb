@@ -1,0 +1,28 @@
+.todoitem {
+    list-style: none;
+    border-bottom: 1px solid #ccc;
+    padding: 5px;
+    min-width: 200px;
+}
+.todoitem input:checked + * {
+    text-decoration: line-through;
+}
+.todoitem input[type="text"] {
+    border: 0;
+    border-bottom: 1px solid #ccc;
+    margin: 5px;
+}
+
+.todoitem button {
+    color: transparent;
+    background: transparent;
+    border: none;
+    width: 16px;
+    float: right;
+    overflow: hidden;
+}
+.todoitem button:before {
+    content: 'X';
+    color: black;
+    cursor: pointer;
+}

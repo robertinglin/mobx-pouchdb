@@ -1,0 +1,35 @@
+{
+  "name": "mobx-pouchdb",
+  "version": "1.0.0",
+  "description": "MobX'd PouchDB connections",
+  "main": "dist/mobx-pouchdb.js",
+  "repository": "https://github.com/robertinglin/mobx-pouchdb.git",
+  "author": "Robert Inglin <robertinglin@hotmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "jest --coverage",
+    "test-watch": "jest --watchAll",
+    "build": "webpack-cli"
+  },
+  "peerDependencies": {
+    "mobx": ">=4.1.0 < 5",
+    "pouchdb": ">=6.4.3 < 7"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-jest": "^23.0.0-alpha.0",
+    "babel-loader": "^7.1.4",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "jest": "^22.4.2",
+    "webpack": "^4.1.1",
+    "webpack-cli": "^2.0.12"
+  },
+  "dependencies": {
+    "mobx": "^4.1.0",
+    "pouchdb": "^6.4.3",
+    "shortid": "^2.2.8"
+  }
+}
