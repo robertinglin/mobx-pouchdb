@@ -1,12 +1,11 @@
 import React, { Component } from 'react';
-import { hot } from 'react-hot-loader';
 import ToDo from './ToDo';
 import reactlogo from './react.svg';
 import mobxlogo from './mobx.svg';
 import pouchdblogo from './pouchdb.svg';
 import './App.css';
 
-class App extends Component {
+export default class App extends Component {
     componentDidMount() {
         
     }
@@ -28,5 +27,3 @@ class App extends Component {
         );
     }
 }
-
-export default hot(module)(App);

@@ -12,6 +12,7 @@ export class SearchStore {
 
     @action
     search() {
+        // console.log('chchchhanges!!');
         if (this.queryResults) {
             ToDoModelStore.removeQuery(this.queryResults);
         }
