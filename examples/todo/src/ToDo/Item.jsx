@@ -17,7 +17,7 @@ export default class ToDoItem extends Component {
                     <input
                         autoFocus
                         type="text"
-                        value={todo.title}
+                        value={todo.E.title}
                         onBlur={() => {todo.save();this.setState({isEditing: false})}}
                         onChange={({ target: { value }}) => todo.setTitle(value)}
                     />

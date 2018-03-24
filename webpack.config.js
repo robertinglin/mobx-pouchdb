@@ -4,6 +4,9 @@ var webpack = require('webpack');
 module.exports = {
     devtool: 'source-map',
     entry: './src/index.js',
+    optimization: {
+        minimize: false
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'mobx-pouchdb.js',

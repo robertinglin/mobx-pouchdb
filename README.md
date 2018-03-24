@@ -13,11 +13,41 @@ Basic model scaffolding. Exposes edit actions to modify doc state without changi
 #### Functions
 
 - generateId - id generation - defaults to shortid
-- save - writes any edits directly to the document should be extended to write to db
+- save - writes any edits directly to the document
 - toJS - converts the MobX model back to a JS object for PouchDB write. Also used to remove properties that shouldn't be written to Pouch
 - setE - Sets an edited parameter in temporary storage
 - getE - Gets the parameter from temporary storage or the base object if it isn't in temp
 - clearE - clears all temporary parmeters, reverting state
+
+#### Big E
+
+Instead of using getE & setE, temp storage can be accessed directly through the E property. Just like getE, if the property hasn't been written to E before it will pull the value from the base model.
+
+`
+const todo = new ToDoModel('Something to do');
+console.log(todo.title, todo.E.title);
+//  prints 'Something to do', 'Something to do'
+
+todo.E.title = 'E temporary storage example'` 
+console.log(todo.title, todo.E.title);
+// prints 'Something to do', 'E temporary storage example'
+
+todo.save();
+console.log(todo.title, todo.E.title);
+// prints 'E temporary storage example', 'E temporary storage example'
+`
+
+#### Saving to PouchDB
+
+If using Big E for your edits you can set the following save function to only save to pouch when there's edits 
+
+`
+save() {
+    if (super.save()) {
+        POUCH_DB_INSTANCE.put(this.toJS());
+    }
+}
+`
 
 ### ModelStore
 

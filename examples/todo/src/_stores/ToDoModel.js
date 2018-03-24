@@ -9,8 +9,7 @@ export default class ToDoModel extends Model {
     constructor(docOrTitle) {
         super();
         if (typeof docOrTitle === 'string') {
-            const title = docOrTitle;
-            this.setTitle(title);
+            this.title = docOrTitle;
         }
         else {
             const doc = docOrTitle;
@@ -20,19 +19,21 @@ export default class ToDoModel extends Model {
 
     @action
     setTitle(title) {
-        this.title = title;
+        this.E.title = title;
     }
 
     @action
     toggleComplete() {
-        this.isComplete = !this.isComplete;
+        this.E.isComplete = !this.isComplete;
         this.save();
     }
 
-    async save() {
-        super.save();
-        ToDoService.db.put(this.toJS());
+    save() {
+        if (super.save()) {
+            ToDoService.db.put(this.toJS());
+        }
     }
+
     remove() {
         ToDoService.db.remove(this.toJS());
     }

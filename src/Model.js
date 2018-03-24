@@ -1,4 +1,4 @@
-import { observable, action, decorate } from 'mobx';
+import { observable, action, decorate, runInAction } from 'mobx';
 import shortid from 'shortid';
 
 export default class Model {
@@ -10,6 +10,18 @@ export default class Model {
         if (doc) {
             Object.keys(doc).forEach(key => this[key] = doc[key]);
         }
+        this.E = new Proxy({}, {
+            get: (obj, prop) => {
+                if (this.__edit.get(prop) !== undefined) {
+                    return this.__edit.get(prop);
+                }
+                return this[prop];
+            },
+            set: (obj, prop, val) => {
+                runInAction(() => this.__edit.set(prop, val));
+                return true;
+            }
+        });
     }
 
     generateId() {
@@ -18,7 +30,7 @@ export default class Model {
 
     save() {
         let editCount = 0;
-        this.__edit.toJS().forEach((val, key) => {
+        this.__edit.forEach((val, key) => {
             this[key] = val;
             ++editCount;
         });
@@ -27,7 +39,7 @@ export default class Model {
     }
  
     toJS() {
-        const {__edit, ...doc } = this;
+        const {__edit, E, ...doc } = this;
         Object.keys(doc).forEach(key => {
             if (doc[key] && !!doc[key].toJS) {
                 doc[key] = doc[key].toJS();
@@ -49,14 +61,11 @@ export default class Model {
     }
  
     setE(propertyName, property) {
-        this.__edit.set(propertyName, property);
+        this.E[propertyName] = property;
     }
 
     getE(property) {
-        if (this.__edit.get(property) !== undefined) {
-            return this.__edit.get(property);
-        }
-        return this[property];
+        return this.E[property];
     }
 }
 
