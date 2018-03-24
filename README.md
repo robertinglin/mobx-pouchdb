@@ -23,31 +23,36 @@ Basic model scaffolding. Exposes edit actions to modify doc state without changi
 
 Instead of using getE & setE, temp storage can be accessed directly through the E property. Just like getE, if the property hasn't been written to E before it will pull the value from the base model.
 
-`
+
+```javascript
+
 const todo = new ToDoModel('Something to do');
 console.log(todo.title, todo.E.title);
 //  prints 'Something to do', 'Something to do'
 
-todo.E.title = 'E temporary storage example'` 
+todo.E.title = 'E temporary storage example'
 console.log(todo.title, todo.E.title);
 // prints 'Something to do', 'E temporary storage example'
 
 todo.save();
 console.log(todo.title, todo.E.title);
 // prints 'E temporary storage example', 'E temporary storage example'
-`
+
+```
+
 
 #### Saving to PouchDB
 
-If using Big E for your edits you can set the following save function to only save to pouch when there's edits 
+If using Big E for your edits you can set the following save function to only save to pouch when there's edits.
 
-`
+```javascript
+
 save() {
     if (super.save()) {
         POUCH_DB_INSTANCE.put(this.toJS());
     }
 }
-`
+```
 
 ### ModelStore
 
