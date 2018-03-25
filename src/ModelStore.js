@@ -40,17 +40,20 @@ export default class ModelStore {
             }
             this.lists[mapFunc].queries[stringOptions] = queryResults;
         }
-        if (filterOptions.local_query) {
-            queryResults.results = this.__localQuery(mapFunc, filterOptions);
-            queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.__sideLoad(d.doc))
-        }
-        else {
-            this.service.db.query(mapFunc, filterOptions).then((results) => {
-                queryResults.results = results;
+        return new Promise((resolve, reject) => {
+            if (filterOptions.local_query) {
+                queryResults.results = this.__localQuery(mapFunc, filterOptions);
                 queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.__sideLoad(d.doc))
-            });
-        }
-        return queryResults;
+                resolve(queryResults);
+            }
+            else {
+                this.db.query(mapFunc, filterOptions).then((results) => {
+                    queryResults.results = results;
+                    queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.__sideLoad(d.doc))
+                    resolve(queryResults);
+                });
+            }
+        });
     }
 
     removeQuery(mapFuncOrQueryResults, filterOptions) {

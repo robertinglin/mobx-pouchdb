@@ -277,20 +277,23 @@ var ModelStore = function () {
                 }
                 this.lists[mapFunc].queries[stringOptions] = queryResults;
             }
-            if (filterOptions.local_query) {
-                queryResults.results = this.__localQuery(mapFunc, filterOptions);
-                queryResults[this.propertyName] = queryResults.results.rows.map(function (d) {
-                    return _this.get(d.doc._id) || _this.__sideLoad(d.doc);
-                });
-            } else {
-                this.service.db.query(mapFunc, filterOptions).then(function (results) {
-                    queryResults.results = results;
+            return new Promise(function (resolve, reject) {
+                if (filterOptions.local_query) {
+                    queryResults.results = _this.__localQuery(mapFunc, filterOptions);
                     queryResults[_this.propertyName] = queryResults.results.rows.map(function (d) {
                         return _this.get(d.doc._id) || _this.__sideLoad(d.doc);
                     });
-                });
-            }
-            return queryResults;
+                    resolve(queryResults);
+                } else {
+                    _this.db.query(mapFunc, filterOptions).then(function (results) {
+                        queryResults.results = results;
+                        queryResults[_this.propertyName] = queryResults.results.rows.map(function (d) {
+                            return _this.get(d.doc._id) || _this.__sideLoad(d.doc);
+                        });
+                        resolve(queryResults);
+                    });
+                }
+            });
         }
     }, {
         key: 'removeQuery',

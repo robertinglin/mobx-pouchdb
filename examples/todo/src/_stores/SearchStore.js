@@ -11,12 +11,12 @@ export class SearchStore {
     }
 
     @action
-    search() {
+    async search() {
         // console.log('chchchhanges!!');
         if (this.queryResults) {
             ToDoModelStore.removeQuery(this.queryResults);
         }
-        this.queryResults = ToDoModelStore.query((doc, emit) => {
+        this.queryResults = await ToDoModelStore.query((doc, emit) => {
             (doc.title || '').toLowerCase().split(' ').map(key => emit(key));
         }, { key: this.query.toLowerCase(), include_docs: true, local_query: true, live: true });
     }
