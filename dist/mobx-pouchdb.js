@@ -394,9 +394,7 @@ var ModelStore = function () {
                 return storeDoc._id === doc._id;
             })[0];
             if (storeDoc) {
-                Object.keys(doc).forEach(function (key) {
-                    storeDoc[key] = doc[key];
-                });
+                storeDoc.updateFromDoc(doc);
             }
             this.__queryDocOnChange(doc);
         }
@@ -781,6 +779,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
 
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Model = function () {
@@ -790,13 +790,6 @@ var Model = function () {
         _classCallCheck(this, Model);
 
         this.__edit = new Map();
-
-        this.generateId();
-        if (doc) {
-            Object.keys(doc).forEach(function (key) {
-                return _this[key] = doc[key];
-            });
-        }
         this.E = new Proxy({}, {
             get: function get(obj, prop) {
                 if (_this.__edit.get(prop) !== undefined) {
@@ -811,6 +804,9 @@ var Model = function () {
                 return true;
             }
         });
+
+        this.generateId();
+        this.updateFromDoc(doc);
     }
 
     _createClass(Model, [{
@@ -830,6 +826,27 @@ var Model = function () {
             });
             this.clearE();
             return !!editCount;
+        }
+    }, {
+        key: 'updateFromDoc',
+        value: function updateFromDoc(doc) {
+            var _this3 = this;
+
+            if (doc) {
+                if (!!doc.toJS) {
+                    doc = doc.toJS();
+                }
+                var keys = [].concat(_toConsumableArray(new Set(Object.keys(doc).concat(Object.keys(this.toJS())))));
+                keys.forEach(function (key) {
+                    if (!doc[key] && key === '_id') {
+                        return;
+                    } else if (!!_this3[key] && !!_this3[key].updateFromDoc) {
+                        _this3[key].updateFromDoc(doc[key]);
+                    } else {
+                        _this3[key] = doc[key] === undefined ? '' : doc[key];
+                    }
+                });
+            }
         }
     }, {
         key: 'toJS',
@@ -882,7 +899,8 @@ exports.default = Model;
     clearE: _mobx.action,
     setE: _mobx.action,
     save: _mobx.action,
-    generateId: _mobx.action
+    generateId: _mobx.action,
+    updateFromDoc: _mobx.action
 });
 
 /***/ }),

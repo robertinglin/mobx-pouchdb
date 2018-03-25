@@ -130,9 +130,7 @@ export default class ModelStore {
     __onChange(doc, rev) {
         const storeDoc = this[this.propertyName].filter(storeDoc => storeDoc._id === doc._id)[0];
         if (storeDoc) {
-            Object.keys(doc).forEach(key => {
-                storeDoc[key] = doc[key];
-            });
+            storeDoc.updateFromDoc(doc);
         }
         this.__queryDocOnChange(doc);
 

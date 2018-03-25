@@ -4,24 +4,21 @@ import shortid from 'shortid';
 export default class Model {
     _id;
     __edit = new Map();
-
+    E = new Proxy({}, {
+        get: (obj, prop) => {
+            if (this.__edit.get(prop) !== undefined) {
+                return this.__edit.get(prop);
+            }
+            return this[prop];
+        },
+        set: (obj, prop, val) => {
+            runInAction(() => this.__edit.set(prop, val));
+            return true;
+        }
+    });
     constructor(doc) {
         this.generateId();
-        if (doc) {
-            Object.keys(doc).forEach(key => this[key] = doc[key]);
-        }
-        this.E = new Proxy({}, {
-            get: (obj, prop) => {
-                if (this.__edit.get(prop) !== undefined) {
-                    return this.__edit.get(prop);
-                }
-                return this[prop];
-            },
-            set: (obj, prop, val) => {
-                runInAction(() => this.__edit.set(prop, val));
-                return true;
-            }
-        });
+        this.updateFromDoc(doc);
     }
 
     generateId() {
@@ -36,6 +33,24 @@ export default class Model {
         });
         this.clearE();
         return !!editCount;
+    }
+
+    updateFromDoc(doc) {
+        if (doc) {
+            if (!!doc.toJS) {
+                doc = doc.toJS();
+            }
+            const keys = [...new Set(Object.keys(doc).concat(Object.keys(this.toJS())))];
+            keys.forEach((key) => {
+                if (!doc[key] && key === '_id') {
+                    return;
+                } else if (!!this[key] && !!this[key].updateFromDoc) {
+                    this[key].updateFromDoc(doc[key]);
+                } else {
+                    this[key] = doc[key] === undefined ? '' : doc[key];
+                }
+            });
+        }
     }
  
     toJS() {
@@ -75,5 +90,6 @@ decorate(Model, {
     clearE: action,
     setE: action,
     save: action,
-    generateId: action
+    generateId: action,
+    updateFromDoc: action
 });
