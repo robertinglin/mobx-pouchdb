@@ -3,10 +3,11 @@ import { action, extendObservable, decorate, runInAction } from 'mobx';
 export default class ModelStore {
     lists = [];
 
-    constructor(propertyName, Model, db) {
+    constructor(propertyName, Model, db, mobPouchSettings = {}) {
         this.propertyName = propertyName;
         this.Model = Model;
         this.db = db;
+        this.__mobPouchSettings = mobPouchSettings;
         extendObservable(this, {
             [propertyName]: []
         });
@@ -107,7 +108,8 @@ export default class ModelStore {
         });
     }
 
-    loadAll(settings = { include_docs: true, decending: true }) {
+    loadAll(settings = { include_docs: true, decending: true }, mobPouchSettings = { live: true }) {
+        this.__mobPouchSettings = { ...this.__mobPouchSettings, ...mobPouchSettings };
         return this.db.allDocs(settings).then((allDocs) => {
             runInAction(() =>this[this.propertyName] = allDocs.rows.map(doc => new this.Model(doc.doc)));
             allDocs.rows.forEach(doc => this.__queryDocOnChange(doc));
@@ -134,6 +136,8 @@ export default class ModelStore {
         const storeDoc = this[this.propertyName].filter(storeDoc => storeDoc._id === doc._id)[0];
         if (storeDoc) {
             storeDoc.updateFromDoc(doc);
+        } else if (this.__mobPouchSettings.live) {
+            this.__sideLoad(doc);
         }
         this.__queryDocOnChange(doc);
 
