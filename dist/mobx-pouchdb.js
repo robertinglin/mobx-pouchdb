@@ -227,6 +227,8 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _mobx = __webpack_require__(2);
@@ -237,6 +239,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 var ModelStore = function () {
     function ModelStore(propertyName, Model, db) {
+        var mobPouchSettings = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+
         _classCallCheck(this, ModelStore);
 
         this.lists = [];
@@ -244,6 +248,7 @@ var ModelStore = function () {
         this.propertyName = propertyName;
         this.Model = Model;
         this.db = db;
+        this.__mobPouchSettings = mobPouchSettings;
         (0, _mobx.extendObservable)(this, _defineProperty({}, propertyName, []));
         this.db.changes({
             since: 'now',
@@ -335,7 +340,7 @@ var ModelStore = function () {
                 return doc;
             }
             return this.db.get(docId, settings).then(function (docObj) {
-                var docModel = new _this2.Model(docObj);
+                var docModel = _this2.__generateModel(docObj);
                 _this2[_this2.propertyName].push(docModel);
                 return docModel;
             });
@@ -361,11 +366,13 @@ var ModelStore = function () {
             var _this4 = this;
 
             var settings = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { include_docs: true, decending: true };
+            var mobPouchSettings = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : { live: true };
 
+            this.__mobPouchSettings = _extends({}, this.__mobPouchSettings, mobPouchSettings);
             return this.db.allDocs(settings).then(function (allDocs) {
                 (0, _mobx.runInAction)(function () {
                     return _this4[_this4.propertyName] = allDocs.rows.map(function (doc) {
-                        return new _this4.Model(doc.doc);
+                        return _this4.__generateModel(doc.doc);
                     });
                 });
                 allDocs.rows.forEach(function (doc) {
@@ -375,9 +382,22 @@ var ModelStore = function () {
             });
         }
     }, {
+        key: '__generateModel',
+        value: function __generateModel(doc) {
+            if (this.__mobPouchSettings.typed) {
+                var docType = doc.type || 'default';
+                if (!this.Model[docType]) {
+                    throw new Error('Model type:' + docType + ' not found');
+                }
+                return new this.Model[docType](doc);
+            } else {
+                return new this.Model(doc);
+            }
+        }
+    }, {
         key: '__sideLoad',
         value: function __sideLoad(doc) {
-            var sideLoadedDoc = new this.Model(doc);
+            var sideLoadedDoc = this.__generateModel(doc);
             this[this.propertyName].push(sideLoadedDoc);
             return sideLoadedDoc;
         }
@@ -398,6 +418,8 @@ var ModelStore = function () {
             })[0];
             if (storeDoc) {
                 storeDoc.updateFromDoc(doc);
+            } else if (this.__mobPouchSettings.live) {
+                this.__sideLoad(doc);
             }
             this.__queryDocOnChange(doc);
         }
