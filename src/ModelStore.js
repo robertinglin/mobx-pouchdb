@@ -89,7 +89,7 @@ export default class ModelStore {
             return doc;
         }
         return this.db.get(docId, settings).then((docObj) => {
-            const docModel = new this.Model(docObj);
+            const docModel = this.__generateModel(docObj);
             this[this.propertyName].push(docModel);
             return docModel;
         });
@@ -111,14 +111,26 @@ export default class ModelStore {
     loadAll(settings = { include_docs: true, decending: true }, mobPouchSettings = { live: true }) {
         this.__mobPouchSettings = { ...this.__mobPouchSettings, ...mobPouchSettings };
         return this.db.allDocs(settings).then((allDocs) => {
-            runInAction(() =>this[this.propertyName] = allDocs.rows.map(doc => new this.Model(doc.doc)));
+            runInAction(() =>this[this.propertyName] = allDocs.rows.map(doc => this.__generateModel(doc.doc)));
             allDocs.rows.forEach(doc => this.__queryDocOnChange(doc));
             return this[this.propertyName];
         });
     }
 
+    __generateModel(doc) {
+        if (this.__mobPouchSettings.typed) {
+            let docType = doc.type || 'default';
+            if (!this.Model[docType]) {
+                throw new Error(`Model type:${docType} not found`);
+            }
+            return new this.Model[docType](doc); 
+        } else {
+            return new this.Model(doc);
+        }
+    }
+
     __sideLoad(doc) {
-        const sideLoadedDoc = new this.Model(doc);
+        const sideLoadedDoc = this.__generateModel(doc);
         this[this.propertyName].push(sideLoadedDoc);
         return sideLoadedDoc;
     }
