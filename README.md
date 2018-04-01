@@ -1,3 +1,5 @@
+WIP Docs - https://robertinglin.gitbooks.io/mobx-pouchdb/content/
+
 # mobx-pouchdb
 
 Links MobX observers with PouchDB, allowing simple rapid development and persistant state
