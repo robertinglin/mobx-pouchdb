@@ -7,7 +7,7 @@
 		exports["pouch"] = factory(require("mobx"));
 	else
 		root["pouch"] = factory(root["mobx"]);
-})(window, function(__WEBPACK_EXTERNAL_MODULE__2__) {
+})(window, function(__WEBPACK_EXTERNAL_MODULE__1__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -76,7 +76,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 13);
+/******/ 	return __webpack_require__(__webpack_require__.s = 14);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -86,7 +86,7 @@ return /******/ (function(modules) { // webpackBootstrap
 "use strict";
 
 
-var randomFromSeed = __webpack_require__(9);
+var randomFromSeed = __webpack_require__(10);
 
 var ORIGINAL = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-';
 var alphabet;
@@ -186,12 +186,18 @@ module.exports = {
 
 /***/ }),
 /* 1 */
+/***/ (function(module, exports) {
+
+module.exports = __WEBPACK_EXTERNAL_MODULE__1__;
+
+/***/ }),
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var randomByte = __webpack_require__(8);
+var randomByte = __webpack_require__(9);
 
 function encode(lookup, number) {
     var loopCounter = 0;
@@ -211,13 +217,165 @@ module.exports = encode;
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports) {
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __WEBPACK_EXTERNAL_MODULE__2__;
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _mobx = __webpack_require__(1);
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var scopedEmitFunctions = {};
+
+var Query = function () {
+    function Query(mapFunc, filterOptions, propertyName) {
+        var _extendObservable;
+
+        _classCallCheck(this, Query);
+
+        this.mapFuncPromise = null;
+        this.runPromise = null;
+
+        this._mapFunc = mapFunc;
+        this._filterOptions = filterOptions;
+        this.propertyName = propertyName;
+        var stringOptions = JSON.stringify(filterOptions);
+
+        (0, _mobx.extendObservable)(this, (_extendObservable = {}, _defineProperty(_extendObservable, propertyName, []), _defineProperty(_extendObservable, 'results', null), _extendObservable));
+    }
+
+    _createClass(Query, [{
+        key: 'run',
+        value: function run(modelStore) {
+            var _this = this;
+
+            if (!this.runPromise || !this._filterOptions.live) {
+                if ((this._filterOptions.live || this._filterOptions.local_query) && typeof this._mapFunc === 'string') {
+                    var parts = this._mapFunc.split('/');
+                    this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then(function (mapRes) {
+                        return _this.__scopeMapFunc(mapRes.views[parts[1]].map);
+                    });
+                } else {
+                    this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(this._mapFunc));
+                }
+
+                this.runPromise = this.mapFuncPromise.then(function (mf) {
+                    return new Promise(function (resolve, reject) {
+                        if (_this._filterOptions.local_query) {
+                            resolve(_this.__localQuery(modelStore, mf, _this._filterOptions));
+                        } else {
+                            resolve(modelStore.db.query(_this._mapFunc, _this._filterOptions));
+                        }
+                    }).then(function (results) {
+                        _this.results = results;
+                        _this[_this.propertyName] = results.rows.map(function (d) {
+                            return modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc);
+                        });
+                        return _this;
+                    });
+                });
+            }
+            return this.runPromise;
+        }
+    }, {
+        key: 'onDelete',
+        value: function onDelete(doc) {
+            var docIndex = this[this.propertyName].findIndex(function (rdoc) {
+                return rdoc._id === doc._id;
+            });
+            if (docIndex > -1) {
+                this[this.propertyName].splice(docIndex, 1);
+            }
+        }
+    }, {
+        key: 'onChanges',
+        value: function onChanges(modelStore, docArray) {
+            var _this2 = this;
+
+            docArray.forEach(function (doc) {
+                return _this2.onChange(modelStore, doc);
+            });
+        }
+    }, {
+        key: 'onChange',
+        value: function onChange(modelStore, doc) {
+            var _this3 = this;
+
+            this.mapFuncPromise.then(function (mapFunc) {
+                var docIndex = _this3[_this3.propertyName].findIndex(function (rdoc) {
+                    return rdoc._id === doc._id;
+                });
+                if (_this3.__queryDocument(doc, mapFunc, _this3._filterOptions)) {
+                    if (docIndex === -1) {
+                        _this3[_this3.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));
+                    }
+                } else {
+                    if (docIndex > -1) {
+                        _this3[_this3.propertyName].splice(docIndex, 1);
+                    }
+                }
+            });
+        }
+    }, {
+        key: '__scopeMapFunc',
+        value: function __scopeMapFunc(mapFunc) {
+            var mapFuncStr = mapFunc.toString();
+            if (!scopedEmitFunctions[mapFuncStr]) {
+                // couchdb puts emit in a global scope
+                scopedEmitFunctions[mapFuncStr] = eval('\n                (function queryDocumentKeys(key, doc) {\n                    var keys = [];\n                    function emit(key) {\n                        keys.push(key);\n                    }\n                    var x = ' + mapFuncStr + ';\n                    x(doc, emit);\n                    return keys;\n                })\n            ');
+            }
+            return scopedEmitFunctions[mapFuncStr];
+        }
+    }, {
+        key: '__queryDocument',
+        value: function __queryDocument(doc, mapFunc, filterOptions) {
+            var keysEmitted = mapFunc(filterOptions.key, doc);
+            if (!keysEmitted.length) {
+                return false;
+            }
+            return keysEmitted.includes(filterOptions.key);
+        }
+    }, {
+        key: '__localQuery',
+        value: function __localQuery(modelStore, mapFunc, filterOptions) {
+            var _this4 = this;
+
+            var docs = modelStore[modelStore.propertyName].filter(function (doc) {
+                return _this4.__queryDocument(doc, mapFunc, filterOptions);
+            });
+            return {
+                total_rows: this[this.propertyName].length,
+                offset: 0,
+                rows: docs.map(function (doc) {
+                    return { id: doc._id, key: filterOptions.key, doc: doc };
+                })
+            };
+        }
+    }]);
+
+    return Query;
+}();
+
+exports.default = Query;
+
+
+(0, _mobx.decorate)(Query, {
+    onChange: _mobx.action,
+    onDelete: _mobx.action
+});
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -231,7 +389,15 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _mobx = __webpack_require__(2);
+var _mobx = __webpack_require__(1);
+
+var _Query = __webpack_require__(3);
+
+var _Query2 = _interopRequireDefault(_Query);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
@@ -243,7 +409,7 @@ var ModelStore = function () {
 
         _classCallCheck(this, ModelStore);
 
-        this.lists = [];
+        this.queries = {};
 
         this.propertyName = propertyName;
         this.Model = Model;
@@ -260,60 +426,38 @@ var ModelStore = function () {
     _createClass(ModelStore, [{
         key: 'query',
         value: function query(mapFunc, filterOptions) {
-            var _extendObservable2,
-                _this = this;
-
-            var stringOptions = JSON.stringify(filterOptions);
-            var queryResults = {
-                filterOptions: filterOptions,
-                mapFunc: mapFunc
-            };
-            (0, _mobx.extendObservable)(queryResults, (_extendObservable2 = {}, _defineProperty(_extendObservable2, this.propertyName, []), _defineProperty(_extendObservable2, 'results', null), _extendObservable2));
-
+            var query = void 0;
             if (filterOptions.live) {
-                if (!!this.lists[mapFunc] && !!this.lists[mapFunc].queries[stringOptions]) {
-                    return this.lists[mapFunc].queries[stringOptions];
-                }
-                if (!this.lists[mapFunc]) {
-                    this.lists[mapFunc] = {
-                        mapFunc: mapFunc,
-                        queries: {}
-                    };
-                }
-                this.lists[mapFunc].queries[stringOptions] = queryResults;
-            }
-            return new Promise(function (resolve, reject) {
-                if (filterOptions.local_query) {
-                    queryResults.results = _this.__localQuery(mapFunc, filterOptions);
-                    queryResults[_this.propertyName] = queryResults.results.rows.map(function (d) {
-                        return _this.get(d.doc._id) || _this.__sideLoad(d.doc);
-                    });
-                    resolve(queryResults);
+                var mapFuncStr = mapFunc.toString();
+                var filterOptionsStr = JSON.stringify(filterOptions);
+                var queryList = this.queries[mapFuncStr] || {};
+                if (queryList[filterOptionsStr]) {
+                    return query.run(this);
                 } else {
-                    _this.db.query(mapFunc, filterOptions).then(function (results) {
-                        queryResults.results = results;
-                        queryResults[_this.propertyName] = queryResults.results.rows.map(function (d) {
-                            return _this.get(d.doc._id) || _this.__sideLoad(d.doc);
-                        });
-                        resolve(queryResults);
-                    });
+                    query = new _Query2.default(mapFunc, filterOptions, this.propertyName);
+                    queryList[filterOptionsStr] = query;
+                    this.queries[mapFuncStr] = queryList;
                 }
-            });
+            } else {
+                query = new _Query2.default(mapFunc, filterOptions, this.propertyName);
+            }
+            return query.run(this);
         }
     }, {
         key: 'removeQuery',
         value: function removeQuery(mapFuncOrQueryResults, filterOptions) {
             var mapFunc = mapFuncOrQueryResults;
             if (!filterOptions) {
-                mapFunc = mapFuncOrQueryResults.mapFunc;
-                filterOptions = mapFuncOrQueryResults.filterOptions;
+                mapFunc = mapFuncOrQueryResults._mapFunc;
+                filterOptions = mapFuncOrQueryResults._filterOptions;
             }
-            var stringOptions = JSON.stringify(filterOptions);
-            if (!!this.lists[mapFunc] && !!this.lists[mapFunc].queries[stringOptions]) {
-                if (Object.keys(this.lists[mapFunc].queries).length === 1) {
-                    delete this.lists[mapFunc];
+            var filterOptionsStr = JSON.stringify(filterOptions);
+            var mapFuncStr = mapFunc.toString();
+            if (!!this.queries[mapFuncStr] && !!this.queries[mapFuncStr][filterOptionsStr]) {
+                if (Object.keys(this.queries[mapFuncStr]).length === 1) {
+                    delete this.queries[mapFuncStr];
                 } else {
-                    delete this.lists[mapFunc].queries[stringOptions];
+                    delete this.queries[mapFuncStr][filterOptionsStr];
                 }
             }
         }
@@ -331,7 +475,7 @@ var ModelStore = function () {
     }, {
         key: 'load',
         value: function load(docId) {
-            var _this2 = this;
+            var _this = this;
 
             var settings = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
@@ -340,15 +484,18 @@ var ModelStore = function () {
                 return doc;
             }
             return this.db.get(docId, settings).then(function (docObj) {
-                var docModel = _this2.__generateModel(docObj);
-                _this2[_this2.propertyName].push(docModel);
+                var docModel = _this.__generateModel(docObj);
+                _this[_this.propertyName].push(docModel);
+                _this.__allQueries().forEach(function (q) {
+                    return q.onChange(_this, docObj);
+                });
                 return docModel;
             });
         }
     }, {
         key: 'add',
         value: function add(doc) {
-            var _this3 = this;
+            var _this2 = this;
 
             var jsDoc = doc.toJS && doc.toJS() || doc;
             return this.db.put(jsDoc).then(function (status) {
@@ -357,13 +504,13 @@ var ModelStore = function () {
                 } else {
                     throw new Error(status);
                 }
-                return _this3.__sideLoad(jsDoc);
+                return _this2.__sideLoad(jsDoc);
             });
         }
     }, {
         key: 'loadAll',
         value: function loadAll() {
-            var _this4 = this;
+            var _this3 = this;
 
             var settings = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { include_docs: true, decending: true };
             var mobPouchSettings = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : { live: true };
@@ -371,14 +518,14 @@ var ModelStore = function () {
             this.__mobPouchSettings = _extends({}, this.__mobPouchSettings, mobPouchSettings);
             return this.db.allDocs(settings).then(function (allDocs) {
                 (0, _mobx.runInAction)(function () {
-                    return _this4[_this4.propertyName] = allDocs.rows.map(function (doc) {
-                        return _this4.__generateModel(doc.doc);
+                    return _this3[_this3.propertyName] = allDocs.rows.map(function (doc) {
+                        return _this3.__generateModel(doc.doc);
                     });
                 });
-                allDocs.rows.forEach(function (doc) {
-                    return _this4.__queryDocOnChange(doc);
+                _this3.__allQueries().forEach(function (q) {
+                    return q.onChanges(_this3, allDocs.rows);
                 });
-                return _this4[_this4.propertyName];
+                return _this3[_this3.propertyName];
             });
         }
     }, {
@@ -413,6 +560,8 @@ var ModelStore = function () {
     }, {
         key: '__onChange',
         value: function __onChange(doc, rev) {
+            var _this4 = this;
+
             var storeDoc = this[this.propertyName].filter(function (storeDoc) {
                 return storeDoc._id === doc._id;
             })[0];
@@ -421,7 +570,9 @@ var ModelStore = function () {
             } else if (this.__mobPouchSettings.live) {
                 this.__sideLoad(doc);
             }
-            this.__queryDocOnChange(doc);
+            this.__allQueries().forEach(function (q) {
+                return q.onChange(_this4, doc);
+            });
         }
     }, {
         key: '__onDelete',
@@ -432,86 +583,19 @@ var ModelStore = function () {
             if (storeDocIndex > -1) {
                 this[this.propertyName].splice(storeDocIndex, 1);
             }
-            this.__queryDocOnDelete(doc, true);
-        }
-    }, {
-        key: '__queryDocOnDelete',
-        value: function __queryDocOnDelete(doc) {
-            var _this5 = this;
-
-            var queryMaps = Object.keys(this.lists);
-            queryMaps.forEach(function (map) {
-                var mapObj = _this5.lists[map];
-                var queryKeys = Object.keys(mapObj.queries);
-                queryKeys.forEach(function (queryKey) {
-                    var query = mapObj.queries[queryKey];
-                    var docIndex = query[_this5.propertyName].findIndex(function (rdoc) {
-                        return rdoc._id === doc._id;
-                    });
-                    if (docIndex > -1) {
-                        query[_this5.propertyName].splice(docIndex, 1);
-                    }
-                });
+            this.__allQueries().forEach(function (q) {
+                return q.onDelete(doc);
             });
         }
     }, {
-        key: '__queryDocOnChange',
-        value: function __queryDocOnChange(doc) {
-            var _this6 = this;
+        key: '__allQueries',
+        value: function __allQueries() {
+            var _ref;
 
-            var queryMaps = Object.keys(this.lists);
-            queryMaps.forEach(function (map) {
-                if (!map.startsWith('function')) {
-                    throw new Error('Updating stored queries not yet supported');
-                }
-                var mapObj = _this6.lists[map];
-                var queryKeys = Object.keys(mapObj.queries);
-                queryKeys.forEach(function (queryKey) {
-                    var query = mapObj.queries[queryKey];
-                    var docIndex = query[_this6.propertyName].findIndex(function (rdoc) {
-                        return rdoc._id === doc._id;
-                    });
-                    if (_this6.__queryDocument(doc, mapObj.mapFunc, query.filterOptions)) {
-                        if (docIndex === -1) {
-                            query[_this6.propertyName].push(_this6.get(doc._id) || _this6.__sideLoad(doc));
-                        }
-                    } else {
-                        if (docIndex > -1) {
-                            query[_this6.propertyName].splice(docIndex, 1);
-                        }
-                    }
-                });
-            });
-        }
-    }, {
-        key: '__queryDocument',
-        value: function __queryDocument(doc, mapFunc, filterOptions) {
-            var keysEmitted = [];
-            var key = filterOptions.key;
-            var emit = function emit(key) {
-                return keysEmitted.push(key);
-            };
-            mapFunc(doc, emit);
-            if (!keysEmitted.length) {
-                return false;
-            }
-            return keysEmitted.includes(key);
-        }
-    }, {
-        key: '__localQuery',
-        value: function __localQuery(mapFunc, filterOptions) {
-            var _this7 = this;
-
-            var docs = this[this.propertyName].filter(function (doc) {
-                return _this7.__queryDocument(doc, mapFunc, filterOptions);
-            });
-            return {
-                total_rows: this[this.propertyName].length,
-                offset: 0,
-                rows: docs.map(function (doc) {
-                    return { id: doc._id, key: filterOptions.key, doc: doc };
-                })
-            };
+            var queries = (_ref = []).concat.apply(_ref, _toConsumableArray(Object.values(this.queries).map(function (q) {
+                return Object.values(q);
+            })));
+            return queries;
         }
     }]);
 
@@ -527,13 +611,11 @@ exports.default = ModelStore;
     loadAll: _mobx.action,
     __sideLoad: _mobx.action,
     __onChange: _mobx.action,
-    __onDelete: _mobx.action,
-    __queryDocOnChange: _mobx.action,
-    __queryDocOnDelete: _mobx.action
+    __onDelete: _mobx.action
 });
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -543,7 +625,7 @@ module.exports = 0;
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -569,13 +651,13 @@ module.exports = isShortId;
 
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var encode = __webpack_require__(1);
+var encode = __webpack_require__(2);
 var alphabet = __webpack_require__(0);
 
 // Ignore all milliseconds before a certain time to reduce the size of the date entropy without sacrificing uniqueness.
@@ -624,7 +706,7 @@ module.exports = build;
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -648,7 +730,7 @@ module.exports = decode;
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -669,7 +751,7 @@ module.exports = randomByte;
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -701,23 +783,23 @@ module.exports = {
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 var alphabet = __webpack_require__(0);
-var encode = __webpack_require__(1);
-var decode = __webpack_require__(7);
-var build = __webpack_require__(6);
-var isValid = __webpack_require__(5);
+var encode = __webpack_require__(2);
+var decode = __webpack_require__(8);
+var build = __webpack_require__(7);
+var isValid = __webpack_require__(6);
 
 // if you are using cluster or multiple servers use this to make each instance
 // has a unique value for worker
 // Note: I don't know if this is automatically set when using third
 // party cluster solutions such as pm2.
-var clusterWorkerId = __webpack_require__(4) || 0;
+var clusterWorkerId = __webpack_require__(5) || 0;
 
 /**
  * Set the seed.
@@ -773,16 +855,16 @@ module.exports.isValid = isValid;
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-module.exports = __webpack_require__(10);
+module.exports = __webpack_require__(11);
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -794,9 +876,9 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _mobx = __webpack_require__(2);
+var _mobx = __webpack_require__(1);
 
-var _shortid = __webpack_require__(11);
+var _shortid = __webpack_require__(12);
 
 var _shortid2 = _interopRequireDefault(_shortid);
 
@@ -929,7 +1011,7 @@ exports.default = Model;
 });
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -939,7 +1021,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _Model = __webpack_require__(12);
+var _Model = __webpack_require__(13);
 
 Object.defineProperty(exports, 'Model', {
   enumerable: true,
@@ -948,7 +1030,7 @@ Object.defineProperty(exports, 'Model', {
   }
 });
 
-var _ModelStore = __webpack_require__(3);
+var _ModelStore = __webpack_require__(4);
 
 Object.defineProperty(exports, 'ModelStore', {
   enumerable: true,

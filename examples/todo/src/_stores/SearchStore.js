@@ -18,7 +18,7 @@ export class SearchStore {
         }
         this.queryResults = await ToDoModelStore.query((doc, emit) => {
             (doc.title || '').toLowerCase().split(' ').map(key => emit(key));
-        }, { key: this.query.toLowerCase(), include_docs: true, local_query: true, live: true });
+        }, { key: this.query.toLowerCase(), include_docs: true, local_query: false, live: true });
     }
 
     @action

@@ -1,7 +1,8 @@
 import { action, extendObservable, decorate, runInAction } from 'mobx';
+import Query from './Query';
  
 export default class ModelStore {
-    lists = [];
+    queries = {};
 
     constructor(propertyName, Model, db, mobPouchSettings = {}) {
         this.propertyName = propertyName;
@@ -19,56 +20,37 @@ export default class ModelStore {
     }
 
     query(mapFunc, filterOptions) {
-        const stringOptions = JSON.stringify(filterOptions);
-        const queryResults = {
-            filterOptions,
-            mapFunc
-        };
-        extendObservable(queryResults, {
-            [this.propertyName]: [],
-            results: null
-        });
-
+        let query;
         if (filterOptions.live) {
-            if(!!this.lists[mapFunc] && !!this.lists[mapFunc].queries[stringOptions]) {
-                return this.lists[mapFunc].queries[stringOptions];
+            const mapFuncStr = mapFunc.toString();
+            const filterOptionsStr = JSON.stringify(filterOptions);
+            const queryList = this.queries[mapFuncStr] || {};
+            if (queryList[filterOptionsStr]) {
+                return query.run(this);
+            } else {
+                query = new Query(mapFunc, filterOptions, this.propertyName);
+                queryList[filterOptionsStr] = query;
+                this.queries[mapFuncStr] = queryList;
             }
-            if (!this.lists[mapFunc]) {
-                this.lists[mapFunc] = {
-                    mapFunc,
-                    queries: {}
-                };
-            }
-            this.lists[mapFunc].queries[stringOptions] = queryResults;
+        } else {
+            query = new Query(mapFunc, filterOptions, this.propertyName);
         }
-        return new Promise((resolve, reject) => {
-            if (filterOptions.local_query) {
-                queryResults.results = this.__localQuery(mapFunc, filterOptions);
-                queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.__sideLoad(d.doc))
-                resolve(queryResults);
-            }
-            else {
-                this.db.query(mapFunc, filterOptions).then((results) => {
-                    queryResults.results = results;
-                    queryResults[this.propertyName] =  queryResults.results.rows.map(d => this.get(d.doc._id) || this.__sideLoad(d.doc))
-                    resolve(queryResults);
-                });
-            }
-        });
+        return query.run(this);
     }
 
     removeQuery(mapFuncOrQueryResults, filterOptions) {
         let mapFunc = mapFuncOrQueryResults;
         if (!filterOptions) {
-            mapFunc = mapFuncOrQueryResults.mapFunc;
-            filterOptions = mapFuncOrQueryResults.filterOptions;
+            mapFunc = mapFuncOrQueryResults._mapFunc;
+            filterOptions = mapFuncOrQueryResults._filterOptions;
         }
-        const stringOptions = JSON.stringify(filterOptions);
-        if(!!this.lists[mapFunc] && !!this.lists[mapFunc].queries[stringOptions]) {
-            if (Object.keys(this.lists[mapFunc].queries).length === 1) {
-                delete this.lists[mapFunc];
+        const filterOptionsStr = JSON.stringify(filterOptions);
+        const mapFuncStr = mapFunc.toString();
+        if(!!this.queries[mapFuncStr] && !!this.queries[mapFuncStr][filterOptionsStr]) {
+            if (Object.keys(this.queries[mapFuncStr]).length === 1) {
+                delete this.queries[mapFuncStr];
             } else {
-                delete this.lists[mapFunc].queries[stringOptions];
+                delete this.queries[mapFuncStr][filterOptionsStr];
             }
         }
     }
@@ -91,6 +73,7 @@ export default class ModelStore {
         return this.db.get(docId, settings).then((docObj) => {
             const docModel = this.__generateModel(docObj);
             this[this.propertyName].push(docModel);
+            this.__allQueries().forEach(q => q.onChange(this, docObj));
             return docModel;
         });
     }
@@ -112,7 +95,7 @@ export default class ModelStore {
         this.__mobPouchSettings = { ...this.__mobPouchSettings, ...mobPouchSettings };
         return this.db.allDocs(settings).then((allDocs) => {
             runInAction(() =>this[this.propertyName] = allDocs.rows.map(doc => this.__generateModel(doc.doc)));
-            allDocs.rows.forEach(doc => this.__queryDocOnChange(doc));
+            this.__allQueries().forEach(q => q.onChanges(this, allDocs.rows));
             return this[this.propertyName];
         });
     }
@@ -151,8 +134,7 @@ export default class ModelStore {
         } else if (this.__mobPouchSettings.live) {
             this.__sideLoad(doc);
         }
-        this.__queryDocOnChange(doc);
-
+        this.__allQueries().forEach(q => q.onChange(this, doc));
     }
 
     __onDelete(doc) {
@@ -160,69 +142,14 @@ export default class ModelStore {
         if (storeDocIndex > -1) {
             this[this.propertyName].splice(storeDocIndex, 1);
         }
-        this.__queryDocOnDelete(doc, true);
+        this.__allQueries().forEach(q => q.onDelete(doc));
     }
 
-    __queryDocOnDelete(doc) {
-        const queryMaps = Object.keys(this.lists);
-        queryMaps.forEach((map) => {
-            const mapObj = this.lists[map];
-            const queryKeys = Object.keys(mapObj.queries);
-            queryKeys.forEach((queryKey) => {
-                const query = mapObj.queries[queryKey];
-                const docIndex = query[this.propertyName].findIndex(rdoc => rdoc._id === doc._id);
-                if (docIndex > -1) {
-                    query[this.propertyName].splice(docIndex, 1);
-                }
-            });
-        });
+    __allQueries() {
+        const queries = [].concat(...Object.values(this.queries).map(q => Object.values(q)));
+        return queries;
     }
 
-    __queryDocOnChange(doc) {
-        const queryMaps = Object.keys(this.lists);
-        queryMaps.forEach((map) => {
-            if (!map.startsWith('function')) {
-                throw new Error('Updating stored queries not yet supported');
-            }
-            const mapObj = this.lists[map];
-            const queryKeys = Object.keys(mapObj.queries);
-            queryKeys.forEach((queryKey) => {
-                const query = mapObj.queries[queryKey];
-                const docIndex = query[this.propertyName].findIndex(rdoc => rdoc._id === doc._id);
-                if (this.__queryDocument(doc, mapObj.mapFunc, query.filterOptions)) {
-                    if (docIndex === -1) {
-                        query[this.propertyName].push(this.get(doc._id) || this.__sideLoad(doc));
-                    }
-                }
-                else {
-                    if (docIndex > -1) {
-                        query[this.propertyName].splice(docIndex, 1);
-                    }
-                }
-            });
-
-        });
-    }
-
-    __queryDocument(doc, mapFunc, filterOptions) {
-        let keysEmitted = [];
-        let key = filterOptions.key;
-        const emit = key => keysEmitted.push(key);
-        mapFunc(doc, emit);
-        if (!keysEmitted.length) {
-            return false;
-        }
-        return keysEmitted.includes(key);
-    }
-    
-    __localQuery(mapFunc, filterOptions) {
-        const docs = this[this.propertyName].filter(doc => this.__queryDocument(doc, mapFunc, filterOptions));
-        return {
-            total_rows: this[this.propertyName].length,
-            offset: 0,
-            rows: docs.map(doc => ({ id: doc._id, key: filterOptions.key, doc }))
-        };
-    }
 }
 
 decorate(ModelStore, {
@@ -231,7 +158,5 @@ decorate(ModelStore, {
     loadAll: action,
     __sideLoad: action,
     __onChange: action,
-    __onDelete: action,
-    __queryDocOnChange: action,
-    __queryDocOnDelete: action
+    __onDelete: action
 });
