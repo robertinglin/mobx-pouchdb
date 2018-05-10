@@ -27,9 +27,16 @@ export default class Query {
         if(!this.runPromise || !this._filterOptions.live) {
             if ((this._filterOptions.live || this._filterOptions.local_query) && typeof this._mapFunc === 'string') {
                 const parts = this._mapFunc.split('/');
-                this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then((mapRes) => {
-                    return this.__scopeMapFunc(mapRes.views[parts[1]].map);
-                });
+                this.mapFuncPromise;
+                if (modelStore._design && modelStore._design[parts[0]]) {
+                    this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(modelStore._design[parts[0]].views[parts[1]].map));
+                } else {
+                    this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then((mapRes) => {
+                        modelStore._design = modelStore._design || {};
+                        modelStore._design[parts[0]] = mapRes;
+                        return this.__scopeMapFunc(mapRes.views[parts[1]].map);
+                    });
+                }
             } else {
                 this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(this._mapFunc))
             }

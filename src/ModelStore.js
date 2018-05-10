@@ -94,8 +94,16 @@ export default class ModelStore {
     loadAll(settings = { include_docs: true, decending: true }, mobPouchSettings = { live: true }) {
         this.__mobPouchSettings = { ...this.__mobPouchSettings, ...mobPouchSettings };
         return this.db.allDocs(settings).then((allDocs) => {
-            runInAction(() =>this[this.propertyName] = allDocs.rows.map(doc => this.__generateModel(doc.doc)));
-            this.__allQueries().forEach(q => q.onChanges(this, allDocs.rows));
+            const rows = allDocs.rows.filter((doc) => {
+                if (doc.id.indexOf('_design') === 0) {
+                    this._design = this._design || {};
+                    this._design[doc.id.substr(8)] = doc.doc;
+                    return false;
+                }
+                return true;
+            })
+            runInAction(() =>this[this.propertyName] = rows.map(doc => this.__generateModel(doc.doc)));
+            this.__allQueries().forEach(q => q.onChanges(this, rows));
             return this[this.propertyName];
         });
     }

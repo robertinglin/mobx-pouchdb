@@ -262,9 +262,16 @@ var Query = function () {
             if (!this.runPromise || !this._filterOptions.live) {
                 if ((this._filterOptions.live || this._filterOptions.local_query) && typeof this._mapFunc === 'string') {
                     var parts = this._mapFunc.split('/');
-                    this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then(function (mapRes) {
-                        return _this.__scopeMapFunc(mapRes.views[parts[1]].map);
-                    });
+                    this.mapFuncPromise;
+                    if (modelStore._design && modelStore._design[parts[0]]) {
+                        this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(modelStore._design[parts[0]].views[parts[1]].map));
+                    } else {
+                        this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then(function (mapRes) {
+                            modelStore._design = modelStore._design || {};
+                            modelStore._design[parts[0]] = mapRes;
+                            return _this.__scopeMapFunc(mapRes.views[parts[1]].map);
+                        });
+                    }
                 } else {
                     this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(this._mapFunc));
                 }
@@ -517,13 +524,21 @@ var ModelStore = function () {
 
             this.__mobPouchSettings = _extends({}, this.__mobPouchSettings, mobPouchSettings);
             return this.db.allDocs(settings).then(function (allDocs) {
+                var rows = allDocs.rows.filter(function (doc) {
+                    if (doc.id.indexOf('_design') === 0) {
+                        _this3._design = _this3._design || {};
+                        _this3._design[doc.id.substr(8)] = doc.doc;
+                        return false;
+                    }
+                    return true;
+                });
                 (0, _mobx.runInAction)(function () {
-                    return _this3[_this3.propertyName] = allDocs.rows.map(function (doc) {
+                    return _this3[_this3.propertyName] = rows.map(function (doc) {
                         return _this3.__generateModel(doc.doc);
                     });
                 });
                 _this3.__allQueries().forEach(function (q) {
-                    return q.onChanges(_this3, allDocs.rows);
+                    return q.onChanges(_this3, rows);
                 });
                 return _this3[_this3.propertyName];
             });
