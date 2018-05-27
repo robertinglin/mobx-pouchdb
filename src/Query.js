@@ -74,12 +74,12 @@ export default class Query {
             const docIndex = this[this.propertyName].findIndex(rdoc => rdoc._id === doc._id);
             if (this.__queryDocument(doc, mapFunc, this._filterOptions)) {
                 if (docIndex === -1) {
-                    this[this.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));
+                    runInAction(() => {this[this.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));});
                 }
             }
             else {
                 if (docIndex > -1) {
-                    this[this.propertyName].splice(docIndex, 1);
+                    runInAction(() => {this[this.propertyName].splice(docIndex, 1)});
                 }
             }
         });

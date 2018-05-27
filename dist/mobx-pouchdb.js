@@ -324,11 +324,15 @@ var Query = function () {
                 });
                 if (_this3.__queryDocument(doc, mapFunc, _this3._filterOptions)) {
                     if (docIndex === -1) {
-                        _this3[_this3.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));
+                        (0, _mobx.runInAction)(function () {
+                            _this3[_this3.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));
+                        });
                     }
                 } else {
                     if (docIndex > -1) {
-                        _this3[_this3.propertyName].splice(docIndex, 1);
+                        (0, _mobx.runInAction)(function () {
+                            _this3[_this3.propertyName].splice(docIndex, 1);
+                        });
                     }
                 }
             });
