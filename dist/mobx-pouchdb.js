@@ -496,7 +496,9 @@ var ModelStore = function () {
             }
             return this.db.get(docId, settings).then(function (docObj) {
                 var docModel = _this.__generateModel(docObj);
-                _this[_this.propertyName].push(docModel);
+                (0, _mobx.runInAction)(function () {
+                    return _this[_this.propertyName].push(docModel);
+                });
                 _this.__allQueries().forEach(function (q) {
                     return q.onChange(_this, docObj);
                 });

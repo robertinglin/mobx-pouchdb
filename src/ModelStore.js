@@ -72,7 +72,7 @@ export default class ModelStore {
         }
         return this.db.get(docId, settings).then((docObj) => {
             const docModel = this.__generateModel(docObj);
-            this[this.propertyName].push(docModel);
+            runInAction(() => this[this.propertyName].push(docModel));
             this.__allQueries().forEach(q => q.onChange(this, docObj));
             return docModel;
         });
