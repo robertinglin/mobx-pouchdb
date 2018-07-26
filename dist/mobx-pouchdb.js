@@ -227,9 +227,13 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _mobx = __webpack_require__(1);
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
@@ -264,30 +268,34 @@ var Query = function () {
                     var parts = this._mapFunc.split('/');
                     this.mapFuncPromise;
                     if (modelStore._design && modelStore._design[parts[0]]) {
-                        this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(modelStore._design[parts[0]].views[parts[1]].map));
+                        var doc = modelStore._design[parts[0]].views[parts[1]];
+                        this.mapFuncPromise = Promise.resolve(_extends({}, doc, { map: this.__scopeMapFunc(doc.map) }));
                     } else {
                         this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then(function (mapRes) {
                             modelStore._design = modelStore._design || {};
                             modelStore._design[parts[0]] = mapRes;
-                            return _this.__scopeMapFunc(mapRes.views[parts[1]].map);
+                            var doc = mapRes.views[parts[1]];
+                            return _extends({}, doc, { map: _this.__scopeMapFunc(doc.map) });
                         });
                     }
                 } else {
-                    this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(this._mapFunc));
+                    this.mapFuncPromise = Promise.resolve({ map: this.__scopeMapFunc(this._mapFunc) });
                 }
 
-                this.runPromise = this.mapFuncPromise.then(function (mf) {
+                this.runPromise = this.mapFuncPromise.then(function (designDoc) {
                     return new Promise(function (resolve, reject) {
                         if (_this._filterOptions.local_query) {
-                            resolve(_this.__localQuery(modelStore, mf, _this._filterOptions));
+                            resolve(_this.__localQuery(modelStore, designDoc, _this._filterOptions));
                         } else {
                             resolve(modelStore.db.query(_this._mapFunc, _this._filterOptions));
                         }
                     }).then(function (results) {
                         _this.results = results;
-                        _this[_this.propertyName] = results.rows.map(function (d) {
-                            return modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc);
-                        });
+                        if (results.total_rows !== undefined) {
+                            _this[_this.propertyName] = results.rows.map(function (d) {
+                                return modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc);
+                            });
+                        }
                         return _this;
                     });
                 });
@@ -319,10 +327,13 @@ var Query = function () {
             var _this3 = this;
 
             this.mapFuncPromise.then(function (mapFunc) {
+                if (mapFunc.reduce) {
+                    return;
+                }
                 var docIndex = _this3[_this3.propertyName].findIndex(function (rdoc) {
                     return rdoc._id === doc._id;
                 });
-                if (_this3.__queryDocument(doc, mapFunc, _this3._filterOptions)) {
+                if (_this3.__queryDocument(doc, mapFunc.map, _this3._filterOptions).doc) {
                     if (docIndex === -1) {
                         (0, _mobx.runInAction)(function () {
                             _this3[_this3.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));
@@ -343,34 +354,63 @@ var Query = function () {
             var mapFuncStr = mapFunc.toString();
             if (!scopedEmitFunctions[mapFuncStr]) {
                 // couchdb puts emit in a global scope
-                scopedEmitFunctions[mapFuncStr] = eval('\n                (function queryDocumentKeys(key, doc) {\n                    var keys = [];\n                    function emit(key) {\n                        keys.push(key);\n                    }\n                    var x = ' + mapFuncStr + ';\n                    x(doc, emit);\n                    return keys;\n                })\n            ');
+                scopedEmitFunctions[mapFuncStr] = eval('\n                (function queryDocumentKeys(key, doc) {\n                    var keyValues = {};\n                    function emit(key, value) {\n                        if (!keyValues[key]) {\n                            keyValues[key] = [];\n                        }\n                        keyValues[key].push(value || null);\n                    }\n                    var x = ' + mapFuncStr + ';\n                    x(doc, emit);\n                    return keyValues;\n                })\n            ');
             }
             return scopedEmitFunctions[mapFuncStr];
         }
     }, {
         key: '__queryDocument',
         value: function __queryDocument(doc, mapFunc, filterOptions) {
-            var keysEmitted = mapFunc(filterOptions.key, doc);
-            if (!keysEmitted.length) {
-                return false;
-            }
-            return keysEmitted.includes(filterOptions.key);
+            var keyValues = mapFunc(filterOptions.key, doc);
+            return { value: keyValues[filterOptions.key], doc: keyValues[filterOptions.key] && doc };
         }
     }, {
         key: '__localQuery',
-        value: function __localQuery(modelStore, mapFunc, filterOptions) {
+        value: function __localQuery(modelStore, designDoc, filterOptions) {
             var _this4 = this;
 
-            var docs = modelStore[modelStore.propertyName].filter(function (doc) {
-                return _this4.__queryDocument(doc, mapFunc, filterOptions);
+            var docs = modelStore[modelStore.propertyName].map(function (doc) {
+                return _this4.__queryDocument(doc, designDoc.map, filterOptions);
+            }).filter(function (valueDoc) {
+                return valueDoc.doc;
             });
-            return {
-                total_rows: this[this.propertyName].length,
-                offset: 0,
-                rows: docs.map(function (doc) {
-                    return { id: doc._id, key: filterOptions.key, doc: doc };
-                })
-            };
+            if (designDoc.reduce) {
+                var _Array$prototype;
+
+                var rows = [];
+                var values = docs.map(function (valueDoc) {
+                    return valueDoc.value;
+                });
+                var valueArray = (_Array$prototype = Array.prototype).concat.apply(_Array$prototype, _toConsumableArray(values));
+
+                if (designDoc.reduce === '_sum') {
+                    rows.push({
+                        value: valueArray.reduce(function (prev, current) {
+                            return prev + current * 1;
+                        }, 0),
+                        key: null
+                    });
+                } else if (designDoc.reduce === '_count') {
+                    rows.push({
+                        value: valueArray.length,
+                        key: null
+                    });
+                }
+                return {
+                    rows: rows
+                };
+            } else {
+                var _docs = modelStore[modelStore.propertyName].filter(function (doc) {
+                    return _this4.__queryDocument(doc, designDoc.map, filterOptions);
+                });
+                return {
+                    total_rows: this[this.propertyName].length,
+                    offset: 0,
+                    rows: _docs.map(function (valueDoc) {
+                        return { id: valueDoc.doc._id, key: filterOptions.key, doc: valueDoc.doc };
+                    })
+                };
+            }
         }
     }]);
 
@@ -443,6 +483,7 @@ var ModelStore = function () {
                 var filterOptionsStr = JSON.stringify(filterOptions);
                 var queryList = this.queries[mapFuncStr] || {};
                 if (queryList[filterOptionsStr]) {
+                    query = queryList[filterOptionsStr];
                     return query.run(this);
                 } else {
                     query = new _Query2.default(mapFunc, filterOptions, this.propertyName);

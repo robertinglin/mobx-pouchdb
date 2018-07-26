@@ -29,28 +29,32 @@ export default class Query {
                 const parts = this._mapFunc.split('/');
                 this.mapFuncPromise;
                 if (modelStore._design && modelStore._design[parts[0]]) {
-                    this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(modelStore._design[parts[0]].views[parts[1]].map));
+                    const doc = modelStore._design[parts[0]].views[parts[1]];
+                    this.mapFuncPromise = Promise.resolve({ ...doc, map: this.__scopeMapFunc(doc.map) });
                 } else {
                     this.mapFuncPromise = modelStore.db.get('_design/' + parts[0]).then((mapRes) => {
                         modelStore._design = modelStore._design || {};
                         modelStore._design[parts[0]] = mapRes;
-                        return this.__scopeMapFunc(mapRes.views[parts[1]].map);
+                        const doc = mapRes.views[parts[1]];
+                        return { ...doc, map: this.__scopeMapFunc(doc.map) };
                     });
                 }
             } else {
-                this.mapFuncPromise = Promise.resolve(this.__scopeMapFunc(this._mapFunc))
+                this.mapFuncPromise = Promise.resolve({ map: this.__scopeMapFunc(this._mapFunc) })
             }
 
-            this.runPromise = this.mapFuncPromise.then((mf) => {
+            this.runPromise = this.mapFuncPromise.then((designDoc) => {
                 return new Promise((resolve, reject) => {
                     if (this._filterOptions.local_query) {                
-                        resolve(this.__localQuery(modelStore, mf, this._filterOptions));
+                        resolve(this.__localQuery(modelStore, designDoc, this._filterOptions));
                     } else {
                         resolve(modelStore.db.query(this._mapFunc, this._filterOptions))
                     }
                 }).then((results) => {
                     this.results = results;
-                    this[this.propertyName] =  results.rows.map(d => modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc))
+                    if (results.total_rows !== undefined) {
+                        this[this.propertyName] =  results.rows.map(d => modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc))
+                    }
                     return this;
                 });
             });
@@ -71,8 +75,11 @@ export default class Query {
 
     onChange(modelStore, doc) {
         this.mapFuncPromise.then((mapFunc) => {
+            if (mapFunc.reduce) {
+                return;
+            }
             const docIndex = this[this.propertyName].findIndex(rdoc => rdoc._id === doc._id);
-            if (this.__queryDocument(doc, mapFunc, this._filterOptions)) {
+            if (this.__queryDocument(doc, mapFunc.map, this._filterOptions).doc) {
                 if (docIndex === -1) {
                     runInAction(() => {this[this.propertyName].push(modelStore.get(doc._id) || modelStore.__sideLoad(doc));});
                 }
@@ -91,13 +98,16 @@ export default class Query {
             // couchdb puts emit in a global scope
             scopedEmitFunctions[mapFuncStr] = eval(`
                 (function queryDocumentKeys(key, doc) {
-                    var keys = [];
-                    function emit(key) {
-                        keys.push(key);
+                    var keyValues = {};
+                    function emit(key, value) {
+                        if (!keyValues[key]) {
+                            keyValues[key] = [];
+                        }
+                        keyValues[key].push(value || null);
                     }
                     var x = ${mapFuncStr};
                     x(doc, emit);
-                    return keys;
+                    return keyValues;
                 })
             `);
         }
@@ -105,20 +115,39 @@ export default class Query {
     }
 
     __queryDocument(doc, mapFunc, filterOptions) {
-        let keysEmitted = mapFunc(filterOptions.key, doc);
-        if (!keysEmitted.length) {
-            return false;
-        }
-        return keysEmitted.includes(filterOptions.key);
+        let keyValues = mapFunc(filterOptions.key, doc);
+        return { value: keyValues[filterOptions.key], doc: keyValues[filterOptions.key] && doc };
     }
     
-    __localQuery(modelStore, mapFunc, filterOptions) {
-        const docs = modelStore[modelStore.propertyName].filter(doc => this.__queryDocument(doc, mapFunc, filterOptions));
-        return {
-            total_rows: this[this.propertyName].length,
-            offset: 0,
-            rows: docs.map(doc => ({ id: doc._id, key: filterOptions.key, doc }))
-        };
+    __localQuery(modelStore, designDoc, filterOptions) {
+        const docs = modelStore[modelStore.propertyName].map(doc => this.__queryDocument(doc, designDoc.map, filterOptions)).filter(valueDoc => valueDoc.doc);
+        if (designDoc.reduce) {
+            let rows = [];
+            const values = docs.map(valueDoc => valueDoc.value)
+            const valueArray = Array.prototype.concat(...values);
+            
+            if (designDoc.reduce === '_sum') {
+                rows.push({
+                    value: valueArray.reduce((prev, current) => prev + current * 1, 0),
+                    key: null
+                });
+            } else if (designDoc.reduce === '_count') {
+                rows.push({
+                    value: valueArray.length,
+                    key: null
+                });
+            }
+            return {
+                rows
+            };
+        } else {
+            const docs = modelStore[modelStore.propertyName].filter(doc => this.__queryDocument(doc, designDoc.map, filterOptions));
+            return {
+                total_rows: this[this.propertyName].length,
+                offset: 0,
+                rows: docs.map(valueDoc => ({ id: valueDoc.doc._id, key: filterOptions.key, doc: valueDoc.doc }))
+            };
+        }
     }
 }
 

@@ -26,6 +26,7 @@ export default class ModelStore {
             const filterOptionsStr = JSON.stringify(filterOptions);
             const queryList = this.queries[mapFuncStr] || {};
             if (queryList[filterOptionsStr]) {
+                query = queryList[filterOptionsStr];
                 return query.run(this);
             } else {
                 query = new Query(mapFunc, filterOptions, this.propertyName);
