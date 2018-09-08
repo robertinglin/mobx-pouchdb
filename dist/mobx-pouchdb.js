@@ -584,6 +584,9 @@ var ModelStore = function () {
                         return _this3.__generateModel(doc.doc);
                     });
                 });
+                _this3[_this3.propertyName].forEach(function (doc) {
+                    return _this3.load(doc._id);
+                });
                 _this3.__allQueries().forEach(function (q) {
                     return q.onChanges(_this3, rows);
                 });
@@ -608,7 +611,7 @@ var ModelStore = function () {
         value: function __sideLoad(doc) {
             var sideLoadedDoc = this.__generateModel(doc);
             this[this.propertyName].push(sideLoadedDoc);
-            return sideLoadedDoc;
+            return this.load(doc._id);
         }
     }, {
         key: '__handleChanges',

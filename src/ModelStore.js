@@ -104,6 +104,7 @@ export default class ModelStore {
                 return true;
             })
             runInAction(() =>this[this.propertyName] = rows.map(doc => this.__generateModel(doc.doc)));
+            this[this.propertyName].forEach(doc => this.load(doc._id));
             this.__allQueries().forEach(q => q.onChanges(this, rows));
             return this[this.propertyName];
         });
@@ -124,7 +125,7 @@ export default class ModelStore {
     __sideLoad(doc) {
         const sideLoadedDoc = this.__generateModel(doc);
         this[this.propertyName].push(sideLoadedDoc);
-        return sideLoadedDoc;
+        return this.load(doc._id);
     }
  
     __handleChanges(rev) {
