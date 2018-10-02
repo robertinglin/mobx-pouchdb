@@ -1,4 +1,4 @@
-import { observable, action, decorate, runInAction } from 'mobx';
+import { observable, action, decorate, runInAction, toJS } from 'mobx';
 import shortid from 'shortid';
 
 export default class Model {
@@ -58,6 +58,8 @@ export default class Model {
         Object.keys(doc).forEach(key => {
             if (doc[key] && !!doc[key].toJS) {
                 doc[key] = doc[key].toJS();
+            } else if (doc[key] && !!doc[key].$mobx) {
+                doc[key] = toJS(doc[key]);
             }
             if (Array.isArray(doc[key])) {
                 doc[key] = doc[key].map((val) => {

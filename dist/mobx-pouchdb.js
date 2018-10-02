@@ -1030,6 +1030,8 @@ var Model = function () {
             Object.keys(doc).forEach(function (key) {
                 if (doc[key] && !!doc[key].toJS) {
                     doc[key] = doc[key].toJS();
+                } else if (doc[key] && !!doc[key].$mobx) {
+                    doc[key] = (0, _mobx.toJS)(doc[key]);
                 }
                 if (Array.isArray(doc[key])) {
                     doc[key] = doc[key].map(function (val) {
