@@ -58,14 +58,14 @@ export default class Model {
         Object.keys(doc).forEach(key => {
             if (doc[key] && !!doc[key].toJS) {
                 doc[key] = doc[key].toJS();
-                if (Array.isArray(doc[key])) {
-                    doc[key] = doc[key].map((val) => {
-                        if (val && !!val.toJS) {
-                            return val.toJS();
-                        }
-                        return val;
-                    })
-                }
+            }
+            if (Array.isArray(doc[key])) {
+                doc[key] = doc[key].map((val) => {
+                    if (val && !!val.toJS) {
+                        return val.toJS();
+                    }
+                    return val;
+                })
             }
         });
         return doc;
