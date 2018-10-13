@@ -11,7 +11,8 @@ module.exports = {
         path: path.resolve(__dirname, 'dist'),
         filename: 'mobx-pouchdb.js',
         library: 'pouch',
-        libraryTarget: 'umd'
+        libraryTarget: 'umd',
+        globalObject: "(typeof window !== 'undefined' ? window : this)"
     },
     externals: ['mobx', 'pouchdb'],
     module: {

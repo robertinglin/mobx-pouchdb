@@ -7,7 +7,7 @@
 		exports["pouch"] = factory(require("mobx"));
 	else
 		root["pouch"] = factory(root["mobx"]);
-})(window, function(__WEBPACK_EXTERNAL_MODULE__1__) {
+})((typeof window !== 'undefined' ? window : this), function(__WEBPACK_EXTERNAL_MODULE__1__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
