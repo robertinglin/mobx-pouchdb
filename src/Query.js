@@ -45,7 +45,7 @@ export default class Query {
 
             this.runPromise = this.mapFuncPromise.then((designDoc) => {
                 return new Promise((resolve, reject) => {
-                    if (this._filterOptions.local_query) {                
+                    if (this._filterOptions.local_query) {
                         resolve(this.__localQuery(modelStore, designDoc, this._filterOptions));
                     } else {
                         resolve(modelStore.db.query(this._mapFunc, this._filterOptions))
@@ -86,7 +86,7 @@ export default class Query {
             }
             else {
                 if (docIndex > -1) {
-                    runInAction(() => {this[this.propertyName].splice(docIndex, 1)});
+                    runInAction(() => {this[this.propertyName] = this[this.propertyName].filter((_doc, ind) => ind !== docIndex)});
                 }
             }
         });
@@ -116,16 +116,22 @@ export default class Query {
 
     __queryDocument(doc, mapFunc, filterOptions) {
         let keyValues = mapFunc(filterOptions.key, doc);
-        return { value: keyValues[filterOptions.key], doc: keyValues[filterOptions.key] && doc };
+        if (filterOptions.startkey && filterOptions.endkey) {
+            const docKeys = Object.keys(keyValues);
+            let [ firstMatchingKey = undefined ] = docKeys.filter((docKey) => docKey >= filterOptions.startkey && docKey <= filterOptions.endkey);
+            return { value: keyValues[firstMatchingKey], doc: keyValues[firstMatchingKey] && doc }
+        } else {
+            return { value: keyValues[filterOptions.key], doc: keyValues[filterOptions.key] && doc };
+        }
     }
-    
+
     __localQuery(modelStore, designDoc, filterOptions) {
         const docs = modelStore[modelStore.propertyName].map(doc => this.__queryDocument(doc, designDoc.map, filterOptions)).filter(valueDoc => valueDoc.doc);
         if (designDoc.reduce) {
             let rows = [];
             const values = docs.map(valueDoc => valueDoc.value)
             const valueArray = Array.prototype.concat(...values);
-            
+
             if (designDoc.reduce === '_sum') {
                 rows.push({
                     value: valueArray.reduce((prev, current) => prev + current * 1, 0),
@@ -141,7 +147,6 @@ export default class Query {
                 rows
             };
         } else {
-            const docs = modelStore[modelStore.propertyName].filter(doc => this.__queryDocument(doc, designDoc.map, filterOptions));
             return {
                 total_rows: this[this.propertyName].length,
                 offset: 0,
