@@ -27,10 +27,13 @@ export default class Model {
 
     save() {
         let editCount = 0;
-        this.__edit.forEach((val, key) => {
+        const entries = Array.from(this.__edit);
+        for (let i = 0; i < entries.length; ++i) {
+            const key = entries[i][0];
+            const val = entries[i][1]; 
             this[key] = val;
             ++editCount;
-        });
+        }
         this.clearE();
         return !!editCount;
     }
@@ -41,8 +44,15 @@ export default class Model {
                 doc = doc.toJS();
             }
             const keys = [...new Set(Object.keys(doc).concat(Object.keys(this.toJS())))];
+            const selfProto = Object.getPrototypeOf(this);
+            
             keys.forEach((key) => {
-                if (!doc[key] && key === '_id') {
+                // If the key doesn't exist but it's getter exists 
+                // then it's computed and it can't be overridden
+                const isComputed = !Object.getOwnPropertyDescriptor(this, key)
+                    && Object.getOwnPropertyDescriptor(selfProto, key);
+                
+                if (isComputed || (!doc[key] && key === '_id')) {
                     return;
                 } else if (!!this[key] && !!this[key].updateFromDoc) {
                     this[key].updateFromDoc(doc[key]);
