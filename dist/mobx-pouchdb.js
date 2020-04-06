@@ -369,7 +369,7 @@ var Model = function () {
     }, {
         key: 'clearE',
         value: function clearE() {
-            this.__edit = new Map();
+            this.__edit.clear();
         }
     }, {
         key: 'setE',

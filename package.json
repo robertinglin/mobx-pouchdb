@@ -1,6 +1,6 @@
 {
   "name": "mobx-pouchdb",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "MobX'd PouchDB connections",
   "main": "dist/mobx-pouchdb.js",
   "repository": "https://github.com/robertinglin/mobx-pouchdb.git",
@@ -28,6 +28,6 @@
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
-    "shortid": "^2.2.8"
+    "shortid": "^2.2.15"
   }
 }

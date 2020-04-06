@@ -84,7 +84,7 @@ export default class Model {
     }
 
     clearE() {
-        this.__edit = new Map();
+        this.__edit.clear();
     }
  
     setE(propertyName, property) {
