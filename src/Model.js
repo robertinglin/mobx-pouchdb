@@ -49,15 +49,20 @@ export default class Model {
             keys.forEach((key) => {
                 // If the key doesn't exist but it's getter exists 
                 // then it's computed and it can't be overridden
-                const isComputed = !Object.getOwnPropertyDescriptor(this, key)
-                    && Object.getOwnPropertyDescriptor(selfProto, key);
+                try {
+                    const thisDescriptor = Object.getOwnPropertyDescriptor(this, key);
+                    const protoDescriptor = Object.getOwnPropertyDescriptor(selfProto, key);
+                    const isComputed = (!thisDescriptor || !thisDescriptor.configurable) && protoDescriptor;
                 
-                if (isComputed || (!doc[key] && key === '_id')) {
-                    return;
-                } else if (!!this[key] && !!this[key].updateFromDoc) {
-                    this[key].updateFromDoc(doc[key]);
-                } else {
-                    this[key] = doc[key] === undefined ? '' : doc[key];
+                    if (isComputed || (!doc[key] && key === '_id')) {
+                        return;
+                    } else if (!!this[key] && !!this[key].updateFromDoc) {
+                        this[key].updateFromDoc(doc[key]);
+                    } else {
+                        this[key] = doc[key] === undefined ? '' : doc[key];
+                    }
+                } catch (e) {
+                    console.warn('Failed to update field', key, e);
                 }
             });
         }

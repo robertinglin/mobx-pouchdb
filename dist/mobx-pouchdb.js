@@ -330,14 +330,20 @@ var Model = function () {
                 keys.forEach(function (key) {
                     // If the key doesn't exist but it's getter exists 
                     // then it's computed and it can't be overridden
-                    var isComputed = !Object.getOwnPropertyDescriptor(_this2, key) && Object.getOwnPropertyDescriptor(selfProto, key);
+                    try {
+                        var thisDescriptor = Object.getOwnPropertyDescriptor(_this2, key);
+                        var protoDescriptor = Object.getOwnPropertyDescriptor(selfProto, key);
+                        var isComputed = (!thisDescriptor || !thisDescriptor.configurable) && protoDescriptor;
 
-                    if (isComputed || !doc[key] && key === '_id') {
-                        return;
-                    } else if (!!_this2[key] && !!_this2[key].updateFromDoc) {
-                        _this2[key].updateFromDoc(doc[key]);
-                    } else {
-                        _this2[key] = doc[key] === undefined ? '' : doc[key];
+                        if (isComputed || !doc[key] && key === '_id') {
+                            return;
+                        } else if (!!_this2[key] && !!_this2[key].updateFromDoc) {
+                            _this2[key].updateFromDoc(doc[key]);
+                        } else {
+                            _this2[key] = doc[key] === undefined ? '' : doc[key];
+                        }
+                    } catch (e) {
+                        console.warn('Failed to update field', key, e);
                     }
                 });
             }
