@@ -52,7 +52,7 @@ export default class Query {
                     }
                 }).then((results) => {
                     this.results = results;
-                    if (results.total_rows !== undefined) {
+                    if (results.total_rows !== undefined && this._filterOptions.include_docs) {
                         this[this.propertyName] =  results.rows.map(d => modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc))
                     }
                     return this;

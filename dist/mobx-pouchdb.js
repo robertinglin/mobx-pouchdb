@@ -1033,7 +1033,7 @@ var Query = function () {
                         }
                     }).then(function (results) {
                         _this.results = results;
-                        if (results.total_rows !== undefined) {
+                        if (results.total_rows !== undefined && _this._filterOptions.include_docs) {
                             _this[_this.propertyName] = results.rows.map(function (d) {
                                 return modelStore.get(d.doc._id) || modelStore.__sideLoad(d.doc);
                             });
